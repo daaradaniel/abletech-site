@@ -1284,8 +1284,8 @@ body[data-page="resources"] #resources,body[data-page="support"] #support{displa
 /* B타입 협폭 구간(861-935px) - 줄당 7자 용량 유지용 미세 스케일 */
 @media (min-width:861px) and (max-width:935px){#heroB h1{font-size:6.4vw}}
 
-/* ===== 발행본: 템플릿 설정 UI 비표시(설정은 state 기본값으로 고정) ===== */
-.bld-toggle,#bld{display:none!important}
+/* ===== 발행본: 템플릿 설정 UI 비표시 — daara_admin 관리자 진입 시에만 표시 ===== */
+html:not(.daara-admin) .bld-toggle,html:not(.daara-admin) #bld{display:none!important}
 
 .skip-content{position:fixed;left:16px;top:-80px;z-index:20000;padding:12px 18px;background:#fff;color:#0e1114;border:2px solid currentColor}.skip-content:focus{top:12px}
 .catalog-index{max-width:1280px;margin:40px auto 0;padding:24px 0;border-top:1px solid #cdd1d5;color:var(--text)}.catalog-index h2{font-size:18px;margin-bottom:8px}.catalog-index p{font-size:14px;color:#51565d}.catalog-index ul{display:flex;flex-wrap:wrap;gap:8px 20px;list-style:none;padding:18px 0 0}.catalog-index a{font-size:14px;text-decoration:underline;text-underline-offset:4px}a[data-pdopen]{display:block;color:inherit;text-decoration:none}
@@ -2301,6 +2301,20 @@ addEventListener('resize', pnSpy);
 
 /* URL로 초기 상태 지정: ?hero=b&main=4&maindark=on&cat=3&inq=2&foot=2&count=off&spot=off&brands=off&accent=blue */
 /* 발행본 고정: URL 파라미터로 템플릿 설정 변경 불가 */
+/* 발행본 관리자 진입: /daara_admin 경로(404 우회) 또는 #daara_admin 해시로만 설정 UI 표시 — 진입 후 주소창에서 흔적 제거 */
+(function () {
+  var hit = false;
+  try { if (sessionStorage.getItem('daara_admin') === '1') hit = true; } catch (e) {}
+  var p = location.pathname.replace(/\/+$/, '');
+  if (/\/daara_admin$/.test(p)) { hit = true; try { sessionStorage.setItem('daara_admin', '1'); } catch (e) {} }
+  if (location.hash.replace(/^#/, '') === 'daara_admin') { hit = true; try { sessionStorage.setItem('daara_admin', '1'); } catch (e) {} }
+  if (!hit) return;
+  document.documentElement.classList.add('daara-admin');
+  try {
+    if (/\/daara_admin\/?$/.test(location.pathname)) history.replaceState(null, '', location.pathname.replace(/daara_admin\/?$/, '') + location.search);
+    else if (location.hash === '#daara_admin') history.replaceState(null, '', location.pathname + location.search);
+  } catch (e) {}
+})();
 { const cntList = normCnt(state.cnt); state.cnt = (cntList.length >= 2 ? cntList.slice(0,5) : ['products','new','categories','makers']).join(','); }
 apply(); renderSpot(); renderMain(); renderProducts(); renderCats(); renderEflow(); watchCounters(); pnSpy();
 
@@ -2601,12 +2615,10 @@ function initBuilderStudio() {
   search.addEventListener('input', filter);
   search.addEventListener('search', filter);
   $('#bldCopy').addEventListener('click', async () => {
-    const url = new URL(location.href); Object.entries(state).forEach(([key,value]) => url.searchParams.set(key, value));
-    url.searchParams.set('page', B.dataset.page || 'home');
-    url.searchParams.delete('m'); url.searchParams.delete('id');
-    if (B.dataset.page === 'product') { const product = P.find(p => p.img === $('#pd').dataset.productKey) || P[0]; const id = (product.spec.find(([key]) => key === '제품번호') || [])[1]; if (id) url.searchParams.set('id', id); else url.searchParams.set('m', product.img); }
-    try { await navigator.clipboard.writeText(url.href); $('#bldStatus').textContent = '현재 설정과 미리보기 주소를 복사했습니다.'; }
-    catch { $('#bldStatus').textContent = '자동 복사가 지원되지 않습니다. 아래 주소를 선택해 복사하세요.'; let input = $('#bldCopyFallback'); if (!input) { input = document.createElement('input'); input.id = 'bldCopyFallback'; input.readOnly = true; input.setAttribute('aria-label', '복사할 설정 주소'); $('.bld-foot').append(input); } input.value = url.href; input.focus(); input.select(); }
+    /* 발행본: 설정 진입 주소(daara_admin)를 포함하지 않는 순수 사이트 주소만 복사 */
+    const url = new URL(location.origin + location.pathname.replace(/daara_admin\/?$/, ''));
+    try { await navigator.clipboard.writeText(url.href); $('#bldStatus').textContent = '사이트 주소를 복사했습니다. 설정 진입 주소는 포함되지 않습니다.'; }
+    catch { $('#bldStatus').textContent = '자동 복사가 지원되지 않습니다. 아래 주소를 선택해 복사하세요.'; let input = $('#bldCopyFallback'); if (!input) { input = document.createElement('input'); input.id = 'bldCopyFallback'; input.readOnly = true; input.setAttribute('aria-label', '복사할 사이트 주소'); $('.bld-foot').append(input); } input.value = url.href; input.focus(); input.select(); }
   });
   // 기존 apply 경로를 유지하고 요약 및 문맥만 가볍게 동기화합니다.
   new MutationObserver(() => { paintSummaries(); }).observe(panel, {attributes:true, attributeFilter:['aria-pressed'], subtree:true});
