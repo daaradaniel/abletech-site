@@ -2617,13 +2617,25 @@ function initBuilderStudio() {
   search.addEventListener('search', filter);
   $('#bldCopy').addEventListener('click', async () => {
     /* 발행본: 현재 설정 값이 적용된 공유 주소 복사 — 설정 UI 진입 주소(daara_admin)는 포함하지 않음 */
-    const url = new URL(location.origin + location.pathname.replace(/daara_admin\/?$/, ''));
-    Object.entries(state).forEach(([key,value]) => url.searchParams.set(key, value));
-    url.searchParams.set('page', B.dataset.page || 'home');
-    url.searchParams.delete('m'); url.searchParams.delete('id');
-    if (B.dataset.page === 'product') { const product = P.find(p => p.img === $('#pd').dataset.productKey) || P[0]; const id = (product.spec.find(([key]) => key === '제품번호') || [])[1]; if (id) url.searchParams.set('id', id); else url.searchParams.set('m', product.img); }
-    try { await navigator.clipboard.writeText(url.href); $('#bldStatus').textContent = '현재 설정이 적용된 주소를 복사했습니다. 열리는 페이지에는 템플릿 설정 버튼이 표시되지 않습니다.'; }
-    catch { $('#bldStatus').textContent = '자동 복사가 지원되지 않습니다. 아래 주소를 선택해 복사하세요.'; let input = $('#bldCopyFallback'); if (!input) { input = document.createElement('input'); input.id = 'bldCopyFallback'; input.readOnly = true; input.setAttribute('aria-label', '복사할 설정 주소'); $('.bld-foot').append(input); } input.value = url.href; input.focus(); input.select(); }
+    let text = '';
+    try {
+      const url = new URL(location.origin + location.pathname.replace(/daara_admin\/?$/, ''));
+      Object.entries(state).forEach(([key,value]) => url.searchParams.set(key, value));
+      url.searchParams.set('page', B.dataset.page || 'home');
+      url.searchParams.delete('m'); url.searchParams.delete('id');
+      if (B.dataset.page === 'product') { const product = P.find(p => p.img === $('#pd').dataset.productKey) || P[0]; const id = (product.spec.find(([key]) => key === '제품번호') || [])[1]; if (id) url.searchParams.set('id', id); else url.searchParams.set('m', product.img); }
+      text = url.href;
+    } catch (err) { $('#bldStatus').textContent = '주소를 만드는 중 문제가 발생했습니다. 새로고침 후 다시 시도해 주세요.'; return; }
+    try { await navigator.clipboard.writeText(text); $('#bldStatus').textContent = '현재 설정이 적용된 주소를 복사했습니다. 열리는 페이지에는 템플릿 설정 버튼이 표시되지 않습니다.'; return; } catch (err) {}
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.top = '-1000px'; ta.style.opacity = '0';
+      document.body.append(ta); ta.focus(); ta.select(); ta.setSelectionRange(0, text.length);
+      const ok = document.execCommand('copy'); ta.remove();
+      if (ok) { $('#bldStatus').textContent = '현재 설정이 적용된 주소를 복사했습니다. 열리는 페이지에는 템플릿 설정 버튼이 표시되지 않습니다.'; return; }
+    } catch (err) {}
+    $('#bldStatus').textContent = '자동 복사가 지원되지 않습니다. 아래 주소를 선택해 복사하세요.';
+    let input = $('#bldCopyFallback'); if (!input) { input = document.createElement('input'); input.id = 'bldCopyFallback'; input.readOnly = true; input.setAttribute('aria-label', '복사할 설정 주소'); $('.bld-foot').append(input); } input.value = text; input.focus(); input.select();
   });
   // 기존 apply 경로를 유지하고 요약 및 문맥만 가볍게 동기화합니다.
   new MutationObserver(() => { paintSummaries(); }).observe(panel, {attributes:true, attributeFilter:['aria-pressed'], subtree:true});
